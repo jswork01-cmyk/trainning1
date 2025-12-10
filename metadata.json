@@ -1,0 +1,5 @@
+{
+  "name": "배포용기간설정 현재 최종( 정심작업장 스마트 훈련일지 시스템)",
+  "description": "A comprehensive vocational rehabilitation training log system for sheltered workshops. Features daily logging, structured 5-point evaluation, participant management, and AI-powered report summarization using Gemini.",
+  "requestFramePermissions": []
+}
