@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Trainee, JobTask, DailyLog, Evaluation, EVALUATION_CRITERIA, Employee, ApprovalStep } from '../types';
 import { WEATHER_OPTIONS } from '../constants';
@@ -152,7 +150,14 @@ export const LogForm: React.FC<LogFormProps> = ({ trainees, jobs, employees, onS
       };
     });
 
-    const report = await generateDailyReport(date, selectedJob, evaluationList, weather);
+    // Pass the custom instruction from the job if it exists
+    const report = await generateDailyReport(
+       date, 
+       selectedJob, 
+       evaluationList, 
+       weather, 
+       selectedJob.promptInstruction // Pass the instruction here
+    );
     setAiSummary(report);
     setIsGenerating(false);
   };
@@ -475,6 +480,11 @@ export const LogForm: React.FC<LogFormProps> = ({ trainees, jobs, employees, onS
                               {trainee.workLocation}
                             </span>
                           )}
+                          {trainee.commuteStatus && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full">
+                              {trainee.commuteStatus}
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-gray-500 truncate mt-0.5">
                           {trainee.disabilityType} • {trainee.jobRole || '직무 미지정'}
@@ -565,7 +575,7 @@ export const LogForm: React.FC<LogFormProps> = ({ trainees, jobs, employees, onS
              </div>
 
              {/* AI Summary & Photo Section */}
-             <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0 flex flex-col gap-4">
+             <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0 flex flex-col gap-2">
                {/* Summary */}
                <div className="flex flex-col gap-2">
                   <div className="flex justify-between items-center">
@@ -582,11 +592,20 @@ export const LogForm: React.FC<LogFormProps> = ({ trainees, jobs, employees, onS
                       {aiSummary ? '다시 생성' : '자동 생성'}
                     </button>
                   </div>
+                  
+                  {/* AI Instruction Tip - Compact View */}
+                  {selectedJob && selectedJob.promptInstruction && (
+                      <div className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 mb-1 flex items-start gap-1 max-h-10 overflow-y-auto">
+                          <span className="font-bold flex-shrink-0">✨ AI 지침:</span> 
+                          <span>{selectedJob.promptInstruction}</span>
+                      </div>
+                  )}
+
                   <textarea
                     value={aiSummary}
                     onChange={e => setAiSummary(e.target.value)}
                     placeholder="자동 생성 버튼을 눌러 오늘 훈련의 총평을 작성해보세요."
-                    className="w-full h-24 text-sm p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none shadow-sm"
+                    className="w-full h-24 text-sm p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none shadow-sm"
                   />
                </div>
 
@@ -595,13 +614,13 @@ export const LogForm: React.FC<LogFormProps> = ({ trainees, jobs, employees, onS
                   <div className="flex justify-between items-center">
                      <h3 className="font-semibold text-gray-700 flex items-center gap-2">
                         <ImageIcon size={18} className="text-indigo-600" />
-                        활동 사진 첨부 <span className="text-xs text-gray-400 font-normal">(최대 4장)</span>
+                        활동 사진 <span className="text-xs text-gray-400 font-normal">(최대 4장)</span>
                      </h3>
                      <button 
                         onClick={() => fileInputRef.current?.click()}
                         className="text-xs px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 flex items-center gap-1 shadow-sm"
                      >
-                        <Upload size={12} /> 사진 추가
+                        <Upload size={12} /> 추가
                      </button>
                      <input 
                         type="file" 
@@ -616,7 +635,7 @@ export const LogForm: React.FC<LogFormProps> = ({ trainees, jobs, employees, onS
                   {images.length > 0 ? (
                     <div className="grid grid-cols-4 gap-2">
                        {images.map((img, idx) => (
-                          <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-100">
+                          <div key={idx} className="relative group h-20 w-full rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-gray-100">
                              <img src={img} alt={`활동사진 ${idx+1}`} className="w-full h-full object-cover" />
                              <button 
                                 onClick={() => removeImage(idx)}
@@ -630,10 +649,10 @@ export const LogForm: React.FC<LogFormProps> = ({ trainees, jobs, employees, onS
                   ) : (
                     <div 
                       onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-gray-300 rounded-lg h-20 flex flex-col items-center justify-center text-gray-400 text-xs cursor-pointer hover:bg-gray-100 hover:border-gray-400 transition-colors"
+                      className="border-2 border-dashed border-gray-300 rounded-lg h-12 flex items-center justify-center gap-2 text-gray-400 text-xs cursor-pointer hover:bg-gray-100 hover:border-gray-400 transition-colors"
                     >
-                       <Upload size={16} className="mb-1" />
-                       <p>클릭하여 사진을 업로드하세요</p>
+                       <Upload size={14} />
+                       <p>사진을 업로드하려면 클릭하세요</p>
                     </div>
                   )}
                </div>

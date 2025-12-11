@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { JobTask, Employee, ApprovalRole } from '../types';
-import { Trash2, Building, Briefcase, Users, Lock, CloudUpload, CloudDownload, Activity, Loader2, Check } from 'lucide-react';
+import { Trash2, Building, Briefcase, Users, Lock, CloudUpload, CloudDownload, Activity, Loader2, Check, Sparkles, RefreshCw } from 'lucide-react';
 import { EmployeeSettings } from './EmployeeSettings';
 
 interface SettingsProps {
@@ -28,6 +28,8 @@ interface SettingsProps {
   onSyncEmployees?: () => void;
   onSaveEmployees?: () => void;
   isEmployeeSyncing?: boolean;
+  onSyncJobs?: () => void;
+  isJobSyncing?: boolean;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ 
@@ -53,7 +55,9 @@ export const Settings: React.FC<SettingsProps> = ({
   autoDriveMessage = '',
   onSyncEmployees,
   onSaveEmployees,
-  isEmployeeSyncing = false
+  isEmployeeSyncing = false,
+  onSyncJobs,
+  isJobSyncing = false
 }) => {
   const [activeTab, setActiveTab] = useState<'jobs' | 'employees' | 'general'>('jobs');
   
@@ -69,7 +73,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const isDirector = userRole === 'director';
   
-  const [newJob, setNewJob] = useState<Partial<JobTask>>({ title: '', category: 'assembly', description: '' });
+  const [newJob, setNewJob] = useState<Partial<JobTask>>({ title: '', category: 'assembly', description: '', promptInstruction: '' });
 
   // Sync auto connection status from App when component mounts or prop updates
   useEffect(() => {
@@ -101,12 +105,22 @@ export const Settings: React.FC<SettingsProps> = ({
        return;
     }
 
-    onUpdateJobs([...jobs, { id: normalizedId, title: newJob.title!, category: newJob.category as any, description: newJob.description || '' }]);
-    setNewJob({ title: '', category: 'assembly', description: '' });
+    onUpdateJobs([...jobs, { 
+       id: normalizedId, 
+       title: newJob.title!, 
+       category: newJob.category as any, 
+       description: newJob.description || '',
+       promptInstruction: newJob.promptInstruction || ''
+    }]);
+    setNewJob({ title: '', category: 'assembly', description: '', promptInstruction: '' });
   };
   const handleDeleteJob = (id: string) => {
     if (jobs.length <= 1) { alert('최소 하나의 직무는 존재해야 합니다.'); return; }
     if (confirm('이 직무를 삭제하시겠습니까?')) onUpdateJobs(jobs.filter(j => j.id !== id));
+  };
+  
+  const handleUpdateJobInstruction = (id: string, newInstruction: string) => {
+      onUpdateJobs(jobs.map(j => j.id === id ? { ...j, promptInstruction: newInstruction } : j));
   };
 
   const handleTestConnection = async () => {
@@ -202,13 +216,77 @@ export const Settings: React.FC<SettingsProps> = ({
         <div className="p-6">
           {activeTab === 'jobs' && (
             <div className="space-y-6">
-               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex gap-2">
-                 <input className="p-2 border rounded text-sm w-1/4" placeholder="직무명" value={newJob.title} onChange={e=>setNewJob({...newJob, title:e.target.value})} />
-                 <select className="p-2 border rounded text-sm w-1/4" value={newJob.category} onChange={e=>setNewJob({...newJob, category:e.target.value as any})}><option value="assembly">조립</option><option value="packaging">포장</option><option value="cleaning">청소</option><option value="service">서비스</option><option value="other">기타</option></select>
-                 <input className="p-2 border rounded text-sm flex-1" placeholder="설명" value={newJob.description} onChange={e=>setNewJob({...newJob, description:e.target.value})} />
-                 <button onClick={handleAddJob} className="bg-indigo-600 text-white px-4 rounded text-sm font-bold">추가</button>
+               {/* Add New Job Section */}
+               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-3">
+                 <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-bold text-indigo-800">새 직무 추가</h3>
+                    {onSyncJobs && (
+                      <button 
+                        onClick={onSyncJobs}
+                        disabled={isJobSyncing}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        {isJobSyncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                        구글 시트 동기화 (program)
+                      </button>
+                    )}
+                 </div>
+                 <div className="flex gap-2">
+                    <input className="p-2 border rounded text-sm w-1/4" placeholder="직무명 (예: 단순 조립)" value={newJob.title} onChange={e=>setNewJob({...newJob, title:e.target.value})} />
+                    <select className="p-2 border rounded text-sm w-1/4" value={newJob.category} onChange={e=>setNewJob({...newJob, category:e.target.value as any})}><option value="assembly">조립</option><option value="packaging">포장</option><option value="cleaning">청소</option><option value="service">서비스</option><option value="other">기타</option></select>
+                    <input className="p-2 border rounded text-sm flex-1" placeholder="직무 설명" value={newJob.description} onChange={e=>setNewJob({...newJob, description:e.target.value})} />
+                 </div>
+                 <div className="flex gap-2 items-center">
+                    <Sparkles size={16} className="text-indigo-600 flex-shrink-0" />
+                    <input className="p-2 border rounded text-sm flex-1" placeholder="AI 총평 작성 시 참고할 특별 지침 (예: 작업 속도보다는 위생 상태를 중점적으로 평가해주세요)" value={newJob.promptInstruction} onChange={e=>setNewJob({...newJob, promptInstruction:e.target.value})} />
+                    <button onClick={handleAddJob} className="bg-indigo-600 text-white px-6 py-2 rounded text-sm font-bold shadow-sm hover:bg-indigo-700">추가</button>
+                 </div>
                </div>
-               <table className="w-full text-sm text-left"><thead className="bg-gray-50"><tr><th className="px-4 py-2">직무명</th><th className="px-4 py-2">카테고리</th><th className="px-4 py-2">설명</th><th className="px-4 py-2 text-right">관리</th></tr></thead><tbody>{jobs.map(j => (<tr key={j.id} className="border-b"><td className="px-4 py-2">{j.title}</td><td className="px-4 py-2">{j.category}</td><td className="px-4 py-2 text-gray-500">{j.description}</td><td className="px-4 py-2 text-right"><button onClick={()=>handleDeleteJob(j.id)} className="text-red-500"><Trash2 size={16}/></button></td></tr>))}</tbody></table>
+               
+               {/* Job List Table */}
+               <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                   <table className="w-full text-sm text-left">
+                       <thead className="bg-gray-50 text-gray-700 font-bold border-b border-gray-200">
+                           <tr>
+                               <th className="px-4 py-3 w-1/6">직무명</th>
+                               <th className="px-4 py-3 w-20">분류</th>
+                               <th className="px-4 py-3 w-1/4">설명</th>
+                               <th className="px-4 py-3">AI 프롬프트 지침 (구글 시트 'program' 탭 B열 연동)</th>
+                               <th className="px-4 py-3 w-16 text-right">삭제</th>
+                           </tr>
+                       </thead>
+                       <tbody className="divide-y divide-gray-100">
+                           {jobs.map(j => (
+                               <tr key={j.id} className="hover:bg-gray-50 group">
+                                   <td className="px-4 py-3 font-medium">{j.title}</td>
+                                   <td className="px-4 py-3 text-gray-600">
+                                       <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{j.category}</span>
+                                   </td>
+                                   <td className="px-4 py-3 text-gray-500">{j.description}</td>
+                                   <td className="px-4 py-3">
+                                       <div className="relative">
+                                           <input 
+                                              type="text" 
+                                              value={j.promptInstruction || ''} 
+                                              onChange={(e) => handleUpdateJobInstruction(j.id, e.target.value)}
+                                              placeholder="직무별 맞춤 총평 지침을 입력하세요..."
+                                              className="w-full bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-500 focus:outline-none py-1 text-indigo-700 placeholder-gray-300 text-xs"
+                                           />
+                                           <Sparkles size={10} className="absolute right-0 top-2 text-indigo-300 pointer-events-none" />
+                                       </div>
+                                   </td>
+                                   <td className="px-4 py-3 text-right">
+                                       <button onClick={()=>handleDeleteJob(j.id)} className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50"><Trash2 size={16}/></button>
+                                   </td>
+                               </tr>
+                           ))}
+                       </tbody>
+                   </table>
+               </div>
+               <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded flex items-center gap-1">
+                  <Sparkles size={12} className="text-indigo-500"/>
+                  <strong>팁:</strong> 'AI 프롬프트 지침'을 입력하면, 일지 작성 시 Gemini AI가 해당 지침을 최우선으로 반영하여 총평을 작성합니다. (예: "안전수칙 준수 여부를 강조해줘")
+               </p>
             </div>
           )}
           

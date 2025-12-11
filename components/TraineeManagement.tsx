@@ -1,3 +1,5 @@
+
+
 import React, { useRef, useState } from 'react';
 import { Trainee, JobTask } from '../types';
 import { Upload, Download, Search, Trash2, UserPlus, AlertCircle, X, Save, Edit, Check, Target, RefreshCw, Loader2, FileSpreadsheet } from 'lucide-react';
@@ -33,7 +35,8 @@ export const TraineeManagement: React.FC<TraineeManagementProps> = ({
     phone: '',
     memo: '',
     trainingGoal: '',
-    targetScore: 3
+    targetScore: 3,
+    commuteStatus: ''
   });
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
@@ -56,7 +59,8 @@ export const TraineeManagement: React.FC<TraineeManagementProps> = ({
       phone: '',
       memo: '',
       trainingGoal: '',
-      targetScore: 3
+      targetScore: 3,
+      commuteStatus: ''
     });
     setIsModalOpen(true);
   };
@@ -93,7 +97,8 @@ export const TraineeManagement: React.FC<TraineeManagementProps> = ({
         phone: newTrainee.phone || '',
         memo: newTrainee.memo || '',
         trainingGoal: newTrainee.trainingGoal || '',
-        targetScore: newTrainee.targetScore || 3
+        targetScore: newTrainee.targetScore || 3,
+        commuteStatus: newTrainee.commuteStatus || ''
       };
       onUpdateTrainees([...trainees, traineeToAdd]);
     }
@@ -191,17 +196,18 @@ export const TraineeManagement: React.FC<TraineeManagementProps> = ({
                 <th className="px-6 py-3 w-16">No</th>
                 <th className="px-6 py-3">이름/생년월일</th>
                 <th className="px-6 py-3">장애유형</th>
-                <th className="px-6 py-3">훈련직무</th>
-                <th className="px-6 py-3">훈련목표</th>
+                <th className="px-6 py-3 w-[20%]">훈련직무</th>
+                <th className="px-6 py-3 w-[20%]">훈련목표</th>
                 <th className="px-6 py-3">근무장소</th>
                 <th className="px-6 py-3">구분</th>
+                <th className="px-6 py-3">출퇴근</th>
                 <th className="px-6 py-3 text-right">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredTrainees.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={9} className="px-6 py-12 text-center text-gray-400">
                     데이터가 없습니다.
                   </td>
                 </tr>
@@ -229,8 +235,8 @@ export const TraineeManagement: React.FC<TraineeManagementProps> = ({
                     </td>
                     <td className="px-6 py-3">
                       {t.trainingGoal ? (
-                        <div className="flex flex-col gap-1 max-w-xs">
-                          <span className="text-xs text-gray-800 truncate" title={t.trainingGoal}>{t.trainingGoal}</span>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{t.trainingGoal}</span>
                           <span className="text-[10px] text-indigo-600 font-medium">목표: {t.targetScore}점</span>
                         </div>
                       ) : (
@@ -242,6 +248,11 @@ export const TraineeManagement: React.FC<TraineeManagementProps> = ({
                       <span className={`px-2 py-0.5 rounded text-xs ${t.residenceType === '시설' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
                         {t.residenceType || '미지정'}
                       </span>
+                    </td>
+                    <td className="px-6 py-3 text-gray-600">
+                        {t.commuteStatus ? (
+                            <span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-600">{t.commuteStatus}</span>
+                        ) : '-'}
                     </td>
                     <td className="px-6 py-3 text-right">
                       <div className="flex justify-end gap-1">
@@ -403,6 +414,16 @@ export const TraineeManagement: React.FC<TraineeManagementProps> = ({
                    <option value="훈련">훈련생</option>
                    <option value="근로">근로자</option>
                  </select>
+               </div>
+               <div>
+                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">출퇴근 현황</label>
+                 <input 
+                   type="text" 
+                   value={newTrainee.commuteStatus}
+                   onChange={e => setNewTrainee({...newTrainee, commuteStatus: e.target.value})}
+                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
+                   placeholder="예: 자가, 통근버스"
+                 />
                </div>
                <div>
                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">휴대전화</label>

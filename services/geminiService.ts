@@ -25,7 +25,8 @@ export const generateDailyReport = async (
   date: string,
   job: JobTask,
   evaluations: { trainee: Trainee; score: number; note: string }[],
-  weather: string
+  weather: string,
+  customInstruction?: string // 직무별 특별 지침 (구글 시트 B열 연동)
 ): Promise<string> => {
   const apiKey = getApiKey();
   
@@ -45,33 +46,47 @@ export const generateDailyReport = async (
     `- ${e.trainee.name} (${e.trainee.disabilityType}): 점수 ${e.score}/5. 특이사항: ${e.note || '없음'}`
   ).join('\n');
 
-  const prompt = `
-    당신은 장애인보호작업장의 전문 직업훈련교사입니다. 아래의 훈련 데이터를 바탕으로 "직업재활 훈련일지 총평"을 작성해주세요.
+  // Handle custom instruction text with high visibility for the model
+  // 시스템 기본 설정보다 우선순위를 높이기 위해 가장 강력한 어조 사용 및 상단 배치
+  const instructionSection = customInstruction 
+    ? `
+    [🚨 SYSTEM OVERRIDE: 최우선 적용 지침]
+    (주의: 아래의 '특별 지침'은 이 프롬프트의 다른 어떤 '요청 사항'이나 '기본 설정'보다 우선합니다. 
+    만약 기본 규칙과 충돌할 경우, 무조건 아래 지침을 따르세요.)
     
-    [기본 정보]
+    👉 특별 지침: "${customInstruction}"
+    `
+    : '';
+
+  const prompt = `
+    당신은 장애인보호작업장의 전문 직업훈련교사입니다. 아래 데이터를 바탕으로 훈련일지 총평을 작성해야 합니다.
+
+    ${instructionSection}
+    
+    [훈련 데이터]
     - 날짜: ${date}
     - 날씨: ${weather}
     - 훈련 직무: ${job.title} (${job.description})
     - 참여 인원: ${total}명
     - 평균 수행도: ${avgScore} / 5.0
     
+    [개별 평가 데이터]
+    ${detailList}
+
     [평가 기준 참고]
     - 1~2점: 집중적인 지도가 필요한 상태
     - 3점: 보통 수준
     - 4~5점: 독립적이고 우수한 수행
     
-    [개별 평가 데이터]
-    ${detailList}
-    
-    [요청 사항]
+    [작성 요청 사항 (Default Rules)]
+    0. [중요] 상단에 제시된 '최우선 적용 지침'이 있다면, 그 내용을 글의 핵심 주제로 삼아 작성하십시오.
     1. 전체적인 훈련 분위기와 성과를 요약해주세요.
-    2. 훈련프로그램 전에 동료와 인사를 나누고 직무관련 안전교육을 실시한 내용을 작성해주세요
-    3. 특별히 수행도가 높거나(4-5점) 낮아서(1-2점) 개입이 필요했던 사례를 익명이나 "일부 이용인" 등으로 지칭하지 말고, 구체적인 상황으로 묘사하되, 전체적인 톤은 전문적이고 격려하는 어조로 작성해주세요.
+    2. 훈련프로그램 전에 동료와 인사를 나누고 직무관련 안전교육을 실시한 내용을 포함하세요.
+    3. 특별히 수행도가 높거나(4-5점) 낮아서(1-2점) 개입이 필요했던 사례를 구체적으로 묘사하되, 전문적이고 격려하는 어조를 유지하세요.
     4. 내일 훈련을 위한 제언을 한 문장 포함해주세요.
     5. 글자 수는 공백 포함 300~500자 내외로 작성해주세요.
     6. 경어체(습니다)를 사용해주세요.
-    7. 구글시트 연동이라는 표현은 하지마세요
-    8. 직무가 출퇴근 통근훈련일 경우 특이사항에 기재된 내용은 반영하여 총평작성을 해주세요
+    7. 구글시트 연동이나 시스템, AI에 대한 언급은 절대 하지 마세요.
   `;
 
   try {

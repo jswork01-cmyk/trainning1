@@ -13,6 +13,7 @@ export interface Trainee {
   phone?: string; // 휴대전화
   trainingGoal?: string; // 개별 훈련 목표
   targetScore?: number; // 목표 점수 (1-5)
+  commuteStatus?: string; // 출퇴근 현황 (구글 시트 M열 연동)
 }
 
 export interface Employee {
@@ -30,6 +31,7 @@ export interface JobTask {
   title: string;
   category: 'assembly' | 'packaging' | 'cleaning' | 'service' | 'other';
   description: string;
+  promptInstruction?: string; // AI 총평 작성 시 반영할 직무별 특별 지침 (구글 시트 B열 연동)
 }
 
 export interface Evaluation {

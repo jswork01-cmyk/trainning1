@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MOCK_JOBS, MOCK_TRAINEES, MOCK_EMPLOYEES } from './constants';
 import { DailyLog, Trainee, JobTask, Employee, ApprovalRole, Evaluation, ApprovalStep } from './types';
@@ -185,6 +186,7 @@ const App: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isEmployeeSyncing, setIsEmployeeSyncing] = useState(false); 
+  const [isJobSyncing, setIsJobSyncing] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const [historyFilter, setHistoryFilter] = useState({ date: '', term: '' });
@@ -385,33 +387,43 @@ const App: React.FC = () => {
         phone: headers.findIndex((h: string) => h.includes('전화') || h.includes('phone')),
         goal: headers.findIndex((h: string) => h.includes('목표') || h.includes('goal')),
         score: headers.findIndex((h: string) => h.includes('점수') || h.includes('target')),
-        memo: headers.findIndex((h: string) => h.includes('메모') || h.includes('특이'))
+        memo: headers.findIndex((h: string) => h.includes('메모') || h.includes('특이')),
+        commute: headers.findIndex((h: string) => h.includes('출퇴근') || h.includes('통근'))
       };
 
       if (idx.name === -1) throw new Error("'이름' 컬럼을 찾을 수 없습니다. (시트명: employee)");
 
-      const newTrainees: Trainee[] = rows.map((row: any[], i: number) => {
-        const name = row[idx.name];
-        if (!name) return null;
+      // Use functional update to access the latest trainees state safely
+      setTrainees(prevTrainees => {
+          const newTrainees: Trainee[] = rows.map((row: any[], i: number) => {
+            const name = row[idx.name];
+            if (!name) return null;
+            const cleanName = name.toString().trim();
 
-        return {
-          id: `sheet-t-${i}`,
-          name: name,
-          birthDate: idx.birth > -1 ? row[idx.birth] : '',
-          disabilityType: idx.type > -1 ? row[idx.type] : '기타',
-          jobRole: idx.job > -1 ? row[idx.job] : '',
-          workLocation: (idx.location > -1 && row[idx.location] === '2층') ? '2층' : '1층',
-          residenceType: (idx.residence > -1 && row[idx.residence] === '시설') ? '시설' : '재가',
-          employmentType: (idx.employ > -1 && row[idx.employ] === '근로') ? '근로' : '훈련',
-          phone: idx.phone > -1 ? row[idx.phone] : '',
-          trainingGoal: idx.goal > -1 ? row[idx.goal] : '',
-          targetScore: idx.score > -1 ? (parseInt(row[idx.score]) || 3) : 3,
-          memo: idx.memo > -1 ? row[idx.memo] : ''
-        };
-      }).filter((t: Trainee | null) => t !== null);
+            // Try to find existing trainee by name to preserve ID
+            const existingTrainee = prevTrainees.find(t => t.name === cleanName);
+            const id = existingTrainee ? existingTrainee.id : `sheet-t-${i}`;
 
-      setTrainees(newTrainees);
-      if (!isAuto) alert(`✅ 구글 시트(employee)에서 ${newTrainees.length}명의 이용인 정보를 동기화했습니다.`);
+            return {
+              id: id,
+              name: cleanName,
+              birthDate: idx.birth > -1 ? row[idx.birth] : '',
+              disabilityType: idx.type > -1 ? row[idx.type] : '기타',
+              jobRole: idx.job > -1 ? row[idx.job] : '',
+              workLocation: (idx.location > -1 && row[idx.location] === '2층') ? '2층' : '1층',
+              residenceType: (idx.residence > -1 && row[idx.residence] === '시설') ? '시설' : '재가',
+              employmentType: (idx.employ > -1 && row[idx.employ] === '근로') ? '근로' : '훈련',
+              phone: idx.phone > -1 ? row[idx.phone] : '',
+              trainingGoal: idx.goal > -1 ? row[idx.goal] : '',
+              targetScore: idx.score > -1 ? (parseInt(row[idx.score]) || 3) : 3,
+              memo: idx.memo > -1 ? row[idx.memo] : '',
+              commuteStatus: idx.commute > -1 ? row[idx.commute] : ''
+            };
+          }).filter((t: Trainee | null) => t !== null);
+          
+          if (!isAuto) alert(`✅ 구글 시트(employee)에서 ${newTrainees.length}명의 이용인 정보를 동기화했습니다.\n(기존 데이터 ID 보존됨)`);
+          return newTrainees;
+      });
 
     } catch (e: any) {
       console.error(e);
@@ -427,24 +439,92 @@ const App: React.FC = () => {
       const fetchedJobs: JobTask[] = [];
 
       rows.forEach((row: any, i: number) => {
+          // Column A (index 0): Job Title
           const title = row[0];
           
           if (!title || title === '직무' || title === '직무명' || title === '프로그램' || title === '프로그램명') return;
           
           const trimmedTitle = title.toString().trim();
+          
+          // Column B (index 1): AI Prompt Instruction
+          // Explicitly fetch the instruction from Column B
+          const instruction = row[1] ? row[1].toString().trim() : '';
+
           fetchedJobs.push({
               id: generateSharedJobId(trimmedTitle),
               title: trimmedTitle,
               category: 'other',
-              description: '구글 시트(program) 연동'
+              description: '구글 시트(program) 연동',
+              promptInstruction: instruction // Store the instruction from Sheet
           });
       });
 
       setProgramSheetJobs(fetchedJobs);
-      if (!isAuto && fetchedJobs.length > 0) console.log(`✅ 구글 시트(program)에서 ${fetchedJobs.length}개 직무 동기화`);
+      if (!isAuto && fetchedJobs.length > 0) console.log(`✅ 구글 시트(program)에서 ${fetchedJobs.length}개 직무 및 AI 지침 동기화`);
 
     } catch (e: any) {
        console.error("Program sheet fetch error:", e);
+    }
+  };
+
+  const handleSyncJobsFromSheet = async () => {
+    setIsJobSyncing(true);
+    try {
+       const { rows } = await fetchGVizData(LIVE_SPREADSHEET_ID, 'program');
+       
+       const sheetJobs: JobTask[] = rows.map((row: any) => {
+          const title = row[0]?.toString().trim();
+          if (!title || title === '직무' || title === '직무명' || title === '프로그램') return null;
+          
+          return {
+             id: generateSharedJobId(title),
+             title,
+             category: 'other',
+             description: '구글 시트 동기화',
+             promptInstruction: row[1]?.toString().trim() || ''
+          };
+       }).filter((j: any): j is JobTask => j !== null);
+
+       if (sheetJobs.length === 0) {
+           alert("동기화할 직무 데이터가 없습니다. (program 시트 A열 확인)");
+           return;
+       }
+
+       setJobs(prevJobs => {
+          const newJobs = [...prevJobs];
+          let addedCount = 0;
+          let updatedCount = 0;
+
+          sheetJobs.forEach(sJob => {
+             const idx = newJobs.findIndex(j => j.id === sJob.id);
+             if (idx >= 0) {
+                // Update existing job's instruction if changed
+                // ALWAYS update promptInstruction from sheet regardless of local value
+                if (newJobs[idx].promptInstruction !== sJob.promptInstruction) {
+                   newJobs[idx] = { ...newJobs[idx], promptInstruction: sJob.promptInstruction };
+                   updatedCount++;
+                }
+             } else {
+                // Add new job
+                newJobs.push(sJob);
+                addedCount++;
+             }
+          });
+          
+          console.log(`Jobs synced: ${addedCount} added, ${updatedCount} updated`);
+          return newJobs;
+       });
+
+       // Also update the display-only state for consistency
+       setProgramSheetJobs(sheetJobs);
+       
+       alert(`✅ 구글 시트(program)에서 ${sheetJobs.length}개의 직무를 동기화했습니다.\n(로컬 설정을 덮어썼습니다)`);
+
+    } catch (e: any) {
+       console.error(e);
+       alert(`❌ 직무 동기화 실패: ${e.message}`);
+    } finally {
+       setIsJobSyncing(false);
     }
   };
 
@@ -617,23 +697,51 @@ const App: React.FC = () => {
     });
   }, [logs, sheetLogs, isSheetMode, approvalOverlays]);
   
+  // MERGE JOBS: Local Jobs (Saved in Settings) vs Sheet Jobs (program tab)
+  // FIXED: Prioritize Sheet Instructions for LogForm Display
   const displayJobs = useMemo(() => {
     const mergedJobs = new Map<string, JobTask>();
-    const addJob = (job: JobTask) => {
-       const id = generateSharedJobId(job.title);
-       if (!mergedJobs.has(id)) {
-         mergedJobs.set(id, { ...job, id });
-       }
-    };
-    programSheetJobs.forEach(addJob);
-    sheetJobs.forEach(addJob);
+    
+    // 1. Add Local Jobs first
+    jobs.forEach(job => {
+        mergedJobs.set(job.id, job);
+    });
+
+    // 2. Overlay Program Sheet Jobs (Live Data)
+    // If job exists locally, UPDATE its promptInstruction from sheet to ensure live sync
+    // If job doesn't exist, add it.
+    programSheetJobs.forEach(sheetJob => {
+        if (mergedJobs.has(sheetJob.id)) {
+            const existing = mergedJobs.get(sheetJob.id)!;
+            // OVERWRITE instruction if sheet has one (or even if it's empty, to reflect sheet state?)
+            // Let's assume if sheet has an entry, it governs the instruction.
+            mergedJobs.set(sheetJob.id, { 
+                ...existing, 
+                promptInstruction: sheetJob.promptInstruction 
+            });
+        } else {
+            mergedJobs.set(sheetJob.id, sheetJob);
+        }
+    });
+
+    // 3. Add derived jobs from Sheet Logs (lowest priority for metadata)
+    sheetJobs.forEach(sJob => {
+        if (!mergedJobs.has(sJob.id)) {
+            mergedJobs.set(sJob.id, sJob);
+        }
+    });
+
+    // 4. Add derived jobs from Trainees (lowest priority)
     trainees.forEach(t => {
       if(t.jobRole) t.jobRole.split(',').forEach(r => {
          const title = r.trim();
-         if(title) addJob({ id: generateSharedJobId(title), title, category: 'other', description: 'From Trainee Data' });
+         const id = generateSharedJobId(title);
+         if(title && !mergedJobs.has(id)) {
+             mergedJobs.set(id, { id, title, category: 'other', description: 'From Trainee Data' });
+         }
       });
     });
-    jobs.forEach(addJob);
+
     return Array.from(mergedJobs.values());
   }, [jobs, sheetJobs, trainees, programSheetJobs]);
 
@@ -649,7 +757,7 @@ const App: React.FC = () => {
           hasSyncedRef.current = true;
           fetchRawSheetData(); 
           fetchTraineesFromGoogleSheet(true);
-          fetchProgramsFromGoogleSheet(true);
+          fetchProgramsFromGoogleSheet(true); // Ensures prompt instructions are loaded
           fetchEmployeesFromGoogleSheet(true);
           fetchApprovalsFromGoogleSheet(true);
 
@@ -1530,6 +1638,8 @@ const App: React.FC = () => {
             onSyncEmployees={() => fetchEmployeesFromGoogleSheet(false)}
             onSaveEmployees={saveEmployeesToGoogleSheet}
             isEmployeeSyncing={isEmployeeSyncing}
+            onSyncJobs={handleSyncJobsFromSheet}
+            isJobSyncing={isJobSyncing}
           />
         </div>}
         
