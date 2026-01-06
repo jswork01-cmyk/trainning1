@@ -1,21 +1,22 @@
+
 {
-  "name": "배포용기간설정-현재-최종(-정심작업장-스마트-훈련일지-시스템)",
+  "name": "vocational-rehab-system",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "recharts": "^3.5.1",
-    "react-dom": "^19.2.0",
-    "react": "^19.2.0",
-    "@google/genai": "^1.30.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "lucide-react": "^0.468.0",
-    "prop-types": "^15.8.1",
+    "recharts": "^3.5.1",
+    "@google/genai": "^1.30.0",
     "classnames": "^2.5.1",
+    "prop-types": "^15.8.1",
     "eventemitter3": "^5.0.1",
     "d3-shape": "^3.2.0",
     "d3-path": "^3.1.0",
@@ -28,9 +29,10 @@
     "d3-format": "^3.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
   }
 }
